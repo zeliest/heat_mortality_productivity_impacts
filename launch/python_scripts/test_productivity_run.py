@@ -16,7 +16,7 @@ directory_output = '../../output/mortality_results/'  # where to save to output
 #directory_hazard = '/Users/zeliestalhanske/Desktop/Master/Thesis/Hazard/ch20182/'  # test data
 directory_hazard = '../../input_data/ch2018_sample/'  # test data
 n_mc = 4
-years = [2050]
+years = [2020]
 scenarios = ['RCP85']
 nyears_hazards = 6
 
@@ -35,8 +35,7 @@ for code, category in {'IL': 'inside low physical activity', 'IM': 'inside moder
     exposures_file = ''.join([directory_exposures, 'exposures_productivity_ch_', code, '.h5'])
     exposures[category] = Exposures()
     exposures[category].read_hdf5(exposures_file)
-    exposures[category] = exposures[category][exposures[category]['canton'] == 'Zürich']
-    exposures[category] = Exposures(exposures[category])
+    exposures[category].gdf = exposures[category].gdf[exposures[category].gdf['canton'] == 'Zürich']
     exposures[category].check()
 
 impacts_productivity = ImpactsHeatProductivity(scenarios, years, n_mc)

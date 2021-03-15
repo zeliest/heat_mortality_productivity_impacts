@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -34,7 +36,8 @@ def sample_impact_functions_mortality(file):
     data = file[['T', 'best_estimate', '95CI_low', '95CI_high']]  # get best estimated from the csv files
     xdata = data['T']
 
-    ydata = np.clip(np.random.normal(loc=data['best_estimate'], scale=1), data['95CI_low']*0.9, data['95CI_high']*1.1)
+    ydata = np.clip(np.random.normal(loc=data['best_estimate'], scale=1), np.array(data['95CI_low']*0.9),
+                    np.array(data['95CI_high']*1.1))
 
     # set RR=1 up to T=22°C:
     ydata = np.append(ydata, [1, 1])
@@ -62,10 +65,10 @@ def call_impact_functions_mortality():
     # get the data from the Excel files:
     directory_if = '../../input_data/impact_functions/'
 
-    file_under75 = pd.read_csv(''.join([directory_if, 'impact_under75.csv']))
+    file_under75 = pd.read_csv(os.path.join(directory_if, 'impact_under75.csv'))
     function_under75 = sample_impact_functions_mortality(file_under75)
 
-    file_over75 = pd.read_csv(''.join([directory_if, 'impact_over75.csv']))
+    file_over75 = pd.read_csv(os.path.join(directory_if, 'impact_over75.csv'))
     function_over75 = sample_impact_functions_mortality(file_over75)
 
     # make impact function set:

@@ -123,7 +123,7 @@ def call_hazard_productivity(directory_hazard, scenario, year, nyears_hazard=6, 
         ny = 0
 
     if uncertainty_variable == 'simulations' or uncertainty_variable == 'all':
-        nc_max_temp = np.random.choice(list(set(glob.glob(''.join([directory_hazard, '/tasmax/', '*', scenario, '*'])))))
+        nc_max_temp = np.random.choice(list(set(glob.glob(''.join([directory_hazard, 'tasmax/', '*', scenario, '*'])))))
     else:
         nc_max_temp = glob.glob(directory_hazard + '/tasmax/' + '*SMHI-RCA_NORESM_EUR44*')[0]
 

@@ -7,6 +7,7 @@ from climada.entity import Exposures
 from joblib import Parallel, delayed
 from multiprocessing import cpu_count
 from climada.entity.exposures.base import INDICATOR_CENTR
+from scipy import sparse
 from scipy.sparse import vstack, csr_matrix
 
 from src.util.plots import plot_impacts_heat
@@ -65,7 +66,7 @@ class ImpactsHeat:
     @staticmethod
     def cantonal_values_table(median_impact_matrix, exposures):
         median_impact_exp = median_impact_matrix._build_exp_event(event_id=0)
-        median_impact_exp = pd.merge(median_impact_exp, exposures[['canton', 'latitude', 'longitude']],
+        median_impact_exp = pd.merge(median_impact_exp.gdf, exposures.gdf[['canton', 'latitude', 'longitude']],
                                      on=['latitude', 'longitude'], how='left')
         median_impact_exp = median_impact_exp[['canton', 'value']]
         median_impact_exp = median_impact_exp.groupby('canton').sum()
@@ -111,9 +112,9 @@ class ImpactsHeat:
     def matrix_as_impact(impact_matrix, exposures, unit=None, percentage=False, canton=None):
         impact = Impact()
         if canton:
-            canton_data = exposures['canton'] == canton
-            exposures = exposures[canton_data]
-        impact.coord_exp = np.stack([exposures.latitude.values, exposures.longitude.values], axis=1)
+            canton_data = exposures.gdf['canton'] == canton
+            exposures = exposures.gdf[canton_data]
+        impact.coord_exp = np.stack([exposures.gdf.latitude.values, exposures.gdf.longitude.values], axis=1)
         impact.event_id = np.array([1])
         if canton:
             index = [i for i, x in enumerate(canton_data) if x == True]
@@ -122,7 +123,7 @@ class ImpactsHeat:
             impact.imp_mat = impact_matrix
         if percentage:
             impact.imp_mat = csr_matrix((impact.imp_mat.toarray()[0, :]
-                                         / exposures.value.replace(0,
+                                         / exposures.gdf.value.replace(0,
                                                                    1)) * 100)  # put impacts in terms of percentage of exposure
         impact.unit = unit
         return impact
@@ -242,19 +243,23 @@ class ImpactHeatMortality(Impact):
         # PREPROCESSING STEP:
 
         # get assigned centroids
-        icens = exposures[INDICATOR_CENTR + hazard.tag.haz_type].values[exp_iimp]
+        icens = exposures.gdf[INDICATOR_CENTR + hazard.tag.haz_type].values[exp_iimp]
         # get affected intensities
         temperature_matrix = hazard.intensity[:, icens]  # intensity of the hazard
         # get affected fractions
         # get exposure values
-        exposure_values = exposures.value.values[exp_iimp]
-        daily_deaths = exposures.daily_deaths.values[exp_iimp]
+        exposure_values = exposures.gdf.value.values[exp_iimp]
+        daily_deaths = exposures.gdf.daily_deaths.values[exp_iimp]
 
         daily_deaths_corrected = np.mean([daily_deaths / imp_fun.calc_mdr(t)
                            for t in range(22, 38)], axis=0)
 
-        self.imp_mat[0, exp_iimp] = self._impact_mortality(temperature_matrix, exposure_values, daily_deaths_corrected,
+        impact = self._impact_mortality(temperature_matrix, exposure_values, daily_deaths_corrected,
                                                            imp_fun)
+        row_ind, col_ind = impact.nonzero()
+        self.imp_mat[0].extend(list(impact.data))
+        self.imp_mat[1][0].extend(list(row_ind))
+        self.imp_mat[1][1].extend(list(exp_iimp[col_ind]))
 
     @staticmethod
     def _impact_mortality(temperature_matrix, exposure_values, daily_deaths_corrected, imp_fun):
@@ -265,5 +270,5 @@ class ImpactHeatMortality(Impact):
                                         minlength=np.max(temperature_array) + 1)
         occurence = {t: occurence[t] for t in range(22, len(occurence))}
         af = {t: np.divide(imp_fun.calc_mdr(t) - 1, imp_fun.calc_mdr(t)) for t in temperatures}
-        return np.sum(af[t] * occurence[t] * daily_deaths_corrected*exposure_values for t in temperatures)
+        return sparse.coo_matrix(np.sum(af[t] * occurence[t] * daily_deaths_corrected * exposure_values for t in temperatures))
 
