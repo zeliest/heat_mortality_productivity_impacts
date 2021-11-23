@@ -113,7 +113,7 @@ class ImpactsHeat:
         impact = Impact()
         if canton:
             canton_data = exposures.gdf['canton'] == canton
-            exposures = exposures.gdf[canton_data]
+            exposures.gdf = exposures.gdf[canton_data]
         impact.coord_exp = np.stack([exposures.gdf.latitude.values, exposures.gdf.longitude.values], axis=1)
         impact.event_id = np.array([1])
         if canton:
