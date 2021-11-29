@@ -108,18 +108,18 @@ partly copied from: https://stackoverflow.com/questions/22787209/how-to-have-clu
                             width=b_width, hatch=H,
                                 bottom=bottom0,
                                 color=color[p], edgecolor='white', label=ref_year, yerr=err0,
-                                error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='gray'))
+                                error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='slategray'))
                 bars2 = ax.bar(position[1:], medians[scenario].iloc[1:, p], data=medians[scenario].iloc[1:, p],
                                width=b_width, hatch=H,
                                bottom=bottom1,
                                color=color[p], edgecolor='white', label=labels_cat[p], yerr=err1,
-                               error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='gray'))
+                               error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='slategray'))
             else:
                 bars2 = ax.bar(position[:]+1, medians[scenario].iloc[:, p], data=medians[scenario].iloc[:, p],
                                width=b_width, hatch=H,
                                bottom=bottom,
                                color=color[p], edgecolor='white', label=labels_cat[p], yerr=err,
-                               error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='gray'))
+                               error_kw=dict(barsabove=True, elinewidth=1, capsize=3, ecolor='slategray'))
 
 
         ax.set_ylabel(unit)
