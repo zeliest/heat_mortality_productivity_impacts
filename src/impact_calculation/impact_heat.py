@@ -154,7 +154,9 @@ class ImpactsHeat:
 
     @staticmethod
     def compute_relative_change(matrix, matrix_ref):
-        matrix_rel = (np.nan_to_num((matrix.toarray() - matrix_ref.toarray()) / matrix_ref.toarray())) * 100
+        matrix_ref = matrix_ref.toarray()
+        matrix_ref =  np.where(matrix_ref==0,1,matrix_ref)
+        matrix_rel = ((matrix.toarray() - matrix_ref) / matrix_ref) * 100
         return csr_matrix(matrix_rel)
 
 
@@ -271,4 +273,3 @@ class ImpactHeatMortality(Impact):
         occurence = {t: occurence[t] for t in range(22, len(occurence))}
         af = {t: np.divide(imp_fun.calc_mdr(t) - 1, imp_fun.calc_mdr(t)) for t in temperatures}
         return sparse.coo_matrix(np.sum(af[t] * occurence[t] * daily_deaths_corrected * exposure_values for t in temperatures))
-
