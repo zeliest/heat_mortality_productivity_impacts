@@ -2,8 +2,10 @@ import pickle
 from ast import literal_eval
 import sys
 
+from climada.engine import Impact
 from climada.entity import Exposures
 sys.path.append('../../')
+sys.path.append('../')
 
 from src.impact_calculation.impact_heat import ImpactsHeatMortality
 
@@ -20,7 +22,9 @@ n_mc = literal_eval(sys.argv[2])  # number of Monte Carlo runs
 
 # get third input, the years for which to compute the impact:
 years = [int(i) for i in convert(sys.argv[3])]
-nyears_hazards = 6
+years_str = "_".join([str(i) for i in convert(sys.argv[3])])
+
+nyears_hazards = 10
 # get fifth input, the scenarios for which to compute the impact:
 scenarios = convert(sys.argv[4])
 
@@ -40,6 +44,9 @@ for code, category in {'O': 'Over 75', 'U': 'Under 75'}.items():
 impacts_mortality = ImpactsHeatMortality(scenarios, years, n_mc)
 impacts_mortality.impacts_years_scenarios(exposures, directory_hazard, nyears_hazards, save_median_mat=save_median_mat)
 
-with open(''.join([directory_output, 'impact_CH_values_', str(n_mc), 'mc', '.pickle']), 'wb') as handle:
+
+scenarios_str = "_".join(scenarios)
+with open(''.join([directory_output, 'impact_CH_values_', str(n_mc), 'mc_', scenarios_str,'_',years_str,'.pickle']), 'wb') as handle:
     pickle.dump(impacts_mortality, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 

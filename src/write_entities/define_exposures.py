@@ -4,6 +4,8 @@ from climada.entity import Exposures
 import geopandas as gpd
 from shapely.geometry import Point
 
+from src.write_entities.define_hazard import call_hazard_productivity, call_hazard_mortality
+
 
 def call_exposures_switzerland(population_info, population_loc, shp_cantons_file, epsg_input, epsg_output):
     exposures = Exposures()
@@ -38,7 +40,7 @@ def add_average_deaths(exposures, annual_deaths_file, cantonal_average_deaths):
 
 def call_exposures_switzerland_mortality(file_info, file_locations, shp_cantons, annual_deaths_file, epsg_input=2056,
                                          epsg_output=4326, population_ratio=True, save=False,
-                                         cantonal_average_deaths=True, total_population_ch=8237700):
+                                         cantonal_average_deaths=True, total_population_ch=8237700, directory_hazard=None):
     population_info = pd.read_csv(file_info)  # file containing the information on the categories
     population_loc = pd.read_csv(file_locations)
     exposures = call_exposures_switzerland(population_info, population_loc, shp_cantons, epsg_input, epsg_output)
@@ -57,19 +59,23 @@ def call_exposures_switzerland_mortality(file_info, file_locations, shp_cantons,
         exposures.gdf['value'] = exposures.gdf['value'].divide((exposures.gdf['total_population_canton']))
     exposures = add_average_deaths(exposures, annual_deaths_file, cantonal_average_deaths)
 
-    if save:
-        categories_code = {'Over 75': 'O', 'Under 75': 'U'}
-        for c in exposures.gdf['category'].unique():
-            exposures_category = Exposures()
-            exposures_category.gdf = exposures.gdf[exposures.gdf['category'] == c]
-            exposures_category.check()
-            exposures_category.write_hdf5(''.join(['../../input_data/exposures/exposures_mortality_ch_', categories_code[c], '2.h5']))
+    if_code = {'Over 75': 1, 'Under 75': 2}
+
+    hazard =call_hazard_mortality(directory_hazard, scenario='RCP85', year=2020, nyears_hazards=2)
+    categories_code = {'Over 75': 'O', 'Under 75': 'U'}
+    for c in exposures.gdf['category'].unique():
+        exposures_category = Exposures()
+        exposures_category.gdf = exposures.gdf[exposures.gdf['category'] == c]
+        exposures_category.gdf['if_heat'] = if_code[c]
+        exposures_category.assign_centroids(hazard)
+        exposures_category.check()
+        exposures_category.write_hdf5(''.join(['../../input_data/exposures/exposures_mortality_ch_', categories_code[c], '2.h5']))
 
     return exposures
 
 
 def call_exposures_switzerland_productivity(file_info, file_locations, shp_cantons, epsg_input=2056, epsg_output=4326,
-                                         save=False):
+                                         save=True, directory_hazard=None):
     population_info = pd.read_csv(file_info)  # file containing the information on the categories
     population_loc = pd.read_csv(file_locations)
     population_info = population_info.fillna(0)
@@ -78,15 +84,19 @@ def call_exposures_switzerland_productivity(file_info, file_locations, shp_canto
                                        population_info['GIS_Data_code'] == gis_code].values[0])
 
     exposures = call_exposures_switzerland(population_info, population_loc, shp_cantons, epsg_input, epsg_output)
+    hazard = call_hazard_productivity(directory_hazard, 'RCP85', 2060, nyears_hazard=8, uncertainty_variable='all')
 
-    if save:
-        categories_code = {'inside low physical activity': 'IL', 'inside moderate physical activity': 'IM',
-                           'outside moderate physical activity': 'OM', 'outside high physical activity': 'OH'}
-        for c in categories_code:
-            exposures_category = Exposures()
-            exposures_category.gdf = exposures.gdf[exposures.gdf['category'] == c]
-            exposures_category.check()
-            exposures_category.write_hdf5(''.join(['../../input_data/exposures/exposures_productivity_ch_', categories_code[c], '.h5']))
+    categories_code = {'inside low physical activity': 'IL', 'inside moderate physical activity': 'IM',
+                       'outside moderate physical activity': 'OM', 'outside high physical activity': 'OH'}
+    if_code = {'inside low physical activity': 1, 'inside moderate physical activity': 2,
+                       'outside moderate physical activity': 2, 'outside high physical activity': 3}
+    for c in categories_code:
+        exposures_category = Exposures()
+        exposures_category.gdf = exposures.gdf[exposures.gdf['category'] == c]
+        exposures_category.gdf['if_heat'] = if_code[c]
+        exposures_category.assign_centroids(hazard['inside'])
+        exposures_category.check()
+        exposures_category.write_hdf5(''.join(['../../input_data/exposures/exposures_productivity_ch_', categories_code[c], '.h5']))
     return exposures
 
 

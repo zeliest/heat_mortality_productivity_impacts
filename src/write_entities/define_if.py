@@ -21,7 +21,7 @@ def polynomial(x, a, b, c, d):
 
 
 # function to get a random impact function:
-def sample_impact_functions_mortality(file):
+def sample_impact_functions_mortality(file, sample=True):
     """get curve for the impact function:
 
                        Parameters:
@@ -35,8 +35,9 @@ def sample_impact_functions_mortality(file):
 
     data = file[['T', 'best_estimate', '95CI_low', '95CI_high']]  # get best estimated from the csv files
     xdata = data['T']
-
-    ydata = np.clip(np.random.normal(loc=data['best_estimate'], scale=1), np.array(data['95CI_low']*0.9),
+    ydata = data['best_estimate']
+    if sample:
+        ydata = np.clip(np.random.normal(loc=ydata, scale=0.6), np.array(data['95CI_low']*0.9),
                     np.array(data['95CI_high']*1.1))
 
     # set RR=1 up to T=22°C:
@@ -78,10 +79,11 @@ def call_impact_functions_mortality():
 
     if_heat1 = ImpactFunc()
     if_heat1.haz_type = 'heat'
-    if_heat1.id = 1
+    if_heat1.id = 2
     if_heat1.name = 'u75'
     if_heat1.intensity_unit = 'Degrees C'
     if_heat1.intensity = x
+    if_heat1.name ='impf_heat'
     if_heat1.mdd = (polynomial(x, *function_under75))
     if_heat1.mdd[if_heat1.mdd < 1] = 1  # to avoid having values under RR=1
     if_heat1.paa = np.linspace(1, 1, num=30)
@@ -89,15 +91,15 @@ def call_impact_functions_mortality():
 
     if_heat2 = ImpactFunc()
     if_heat2.haz_type = 'heat'
-    if_heat2.id = 2
+    if_heat2.id = 1
     if_heat2.name = 'o75'
+    if_heat2.name ='impf_heat'
     if_heat2.intensity_unit = 'Degrees C'
     if_heat2.intensity = x
     if_heat2.mdd = (polynomial(x, *function_over75))
     if_heat2.mdd[if_heat2.mdd < 1] = 1
     if_heat2.paa = np.linspace(1, 1, num=30)
     if_heat_set.append(if_heat2)
-
     return if_heat_set
 
 
@@ -119,15 +121,15 @@ def sample_impact_function_productivity(file, intensity, error=True):
 
     if error:
         if intensity == 'high':
-            mult = truncated_normal(1, 0.3, 0.2, 1.8)
+            mult = truncated_normal(1, 0.2, 0.2, 1.8)
         elif intensity == 'moderate':
-            mult = truncated_normal(1, 0.3, 0.2, 1.8)
+            mult = truncated_normal(1, 0.25, 0.2, 1.8)
         else:
-            mult = truncated_normal(1, 0.3, 0.2, 1.8)
+            mult = truncated_normal(1, 0.25, 0.2, 1.8)
     else:
         mult = 1
 
-    ydata = data['best estimate'] * mult  # multiply the points by the random factor
+    ydata = data['best estimate'] * mult # multiply the points by the random factor
 
     # set 100% loss from 60 degrees on and 0% up to 22:
     ydata = np.append(ydata, [100, 100, 100])
@@ -143,6 +145,49 @@ def sample_impact_function_productivity(file, intensity, error=True):
 
 # In[8]:
 
+def write_impact_functions_productivity():
+
+    if_heat_set = ImpactFuncSet()
+    x = np.linspace(22, 45, num=23)
+
+    if_heat1 = ImpactFunc()
+    if_heat1.haz_type = 'heat'
+    if_heat1.id = 1
+    if_heat1.name = 'low physical activity'
+    if_heat1.intensity_unit = 'Degrees C'
+    if_heat1.intensity = x
+    if_heat1.mdd = np.zeros(len(x))
+    if_heat1.paa = np.linspace(1, 1, num=23)
+    #if_heat1.mdd[if_heat1.intensity < 22] = 0
+    if_heat1.name ='impf_heat'
+    if_heat_set.append(if_heat1)
+    #if_heat_set.get_func()['heat'][1]
+
+    if_heat2 = ImpactFunc()
+    if_heat2.haz_type = 'heat'
+    if_heat2.id = 2
+    if_heat2.name = 'medium physical activity'
+    if_heat2.intensity_unit = 'Degrees C'
+    if_heat2.intensity = x
+    if_heat2.mdd = np.zeros(len(x))
+    if_heat2.paa = np.linspace(1, 1, num=23)
+    #if_heat2.mdd[if_heat2.intensity < 22] = 0
+    if_heat2.name ='impf_heat'
+    if_heat_set.append(if_heat2)
+
+    if_heat3 = ImpactFunc()
+    if_heat3.haz_type = 'heat'
+    if_heat3.id = 3
+    if_heat3.name = 'high physical activity'
+    if_heat3.intensity_unit = 'Degrees C'
+    if_heat3.intensity = x
+    if_heat3.mdd = np.zeros(len(x))
+    if_heat3.paa = np.linspace(1, 1, num=23)
+    #if_heat3.mdd[if_heat3.intensity < 22] = 0
+    if_heat3.name ='impf_heat'
+
+    if_heat_set.append(if_heat3)
+    if_heat_set.write_excel('../../input_data/impact_functions/impact_functions_productivity.xlsx')
 
 def call_impact_functions_productivity(with_without_error):
     """get curve for the impact function:
@@ -168,43 +213,27 @@ def call_impact_functions_productivity(with_without_error):
 
     # make impact function set:
 
-    if_heat_set = ImpactFuncSet()
-    x = np.linspace(20, 40, num=30)
-
-    if_heat1 = ImpactFunc()
-    if_heat1.haz_type = 'heat'
-    if_heat1.id = 1
-    if_heat1.name = 'low physical activity'
-    if_heat1.intensity_unit = 'Degrees C'
-    if_heat1.intensity = x
+    if_heat_set = ImpactFuncSet.from_excel('../../input_data/impact_functions/impact_functions_productivity.xlsx')
+    x = np.linspace(22, 45, num=23)
+    if_heat1 = if_heat_set.get_func()['heat'][1]
     if_heat1.mdd = (sigmoid(x, *function_low)) / 100
     if_heat1.mdd[if_heat1.mdd < 0] = 0  # to avoid having negative values
     if_heat1.mdd[if_heat1.mdd > 100] = 100  # to avoid having values over a 100
-    if_heat1.paa = np.linspace(1, 1, num=30)
     if_heat_set.append(if_heat1)
 
-    if_heat2 = ImpactFunc()
-    if_heat2.haz_type = 'heat'
-    if_heat2.id = 2
-    if_heat2.name = 'medium physical activity'
-    if_heat2.intensity_unit = 'Degrees C'
-    if_heat2.intensity = x
+    if_heat2 = if_heat_set.get_func()['heat'][2]
     if_heat2.mdd = (sigmoid(x, *function_moderate)) / 100
     if_heat2.mdd[if_heat2.mdd < 0] = 0
     if_heat2.mdd[if_heat2.mdd > 100] = 100
-    if_heat2.paa = np.linspace(1, 1, num=30)
     if_heat_set.append(if_heat2)
 
-    if_heat3 = ImpactFunc()
-    if_heat3.haz_type = 'heat'
-    if_heat3.id = 3
-    if_heat3.name = 'high physical activity'
-    if_heat3.intensity_unit = 'Degrees C'
-    if_heat3.intensity = x
+
+    if_heat3 = if_heat_set.get_func()['heat'][3]
     if_heat3.mdd = (sigmoid(x, *function_high)) / 100
     if_heat3.mdd[if_heat3.mdd < 0] = 0
     if_heat3.mdd[if_heat3.mdd > 100] = 100
-    if_heat3.paa = np.linspace(1, 1, num=30)
     if_heat_set.append(if_heat3)
+
+    #if_heat3.mdd[if_heat3.intensity < 22] = 0
 
     return if_heat_set

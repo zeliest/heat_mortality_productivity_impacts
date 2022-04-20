@@ -1,7 +1,6 @@
 import pickle
 import pandas as pd
 import numpy as np
-import palettable
 from climada.engine import Impact
 from climada.entity import Exposures
 from joblib import Parallel, delayed
@@ -33,8 +32,8 @@ class ImpactsHeat:
 
         agg_impacts_mc = {exposure: [np.sum(impacts[n][exposure]) for n in range(self.n_mc)] for exposure in exposures}
         if save_median_mat:
-            median_impact_matrices = {exposure: csr_matrix(np.median(vstack(impacts[n][exposure]
-                                                                 for n in range(self.n_mc)).todense(), axis=0)) for exposure in exposures}
+            median_impact_matrices = {exposure: csr_matrix(np.median(np.stack([impacts[n][exposure]
+                                                                 for n in range(self.n_mc)]), axis=0)) for exposure in exposures}
             return [agg_impacts_mc, median_impact_matrices]
 
         return [agg_impacts_mc]
@@ -65,7 +64,7 @@ class ImpactsHeat:
 
     @staticmethod
     def cantonal_values_table(median_impact_matrix, exposures):
-        median_impact_exp = median_impact_matrix._build_exp_event(event_id=0)
+        median_impact_exp = median_impact_matrix._build_exp_event(event_id=1)
         median_impact_exp = pd.merge(median_impact_exp.gdf, exposures.gdf[['canton', 'latitude', 'longitude']],
                                      on=['latitude', 'longitude'], how='left')
         median_impact_exp = median_impact_exp[['canton', 'value']]
@@ -155,7 +154,7 @@ class ImpactsHeat:
     @staticmethod
     def compute_relative_change(matrix, matrix_ref):
         matrix_ref = matrix_ref.toarray()
-        matrix_ref =  np.where(matrix_ref==0,1,matrix_ref)
+        matrix_ref = np.where(matrix_ref == 0,1,matrix_ref)
         matrix_rel = ((matrix.toarray() - matrix_ref) / matrix_ref) * 100
         return csr_matrix(matrix_rel)
 
@@ -177,16 +176,16 @@ class ImpactsHeatProductivity(ImpactsHeat):
             TF = False
 
         if_hw_set = call_impact_functions_productivity(TF)
+
         imp_mat = {}
         for exposure in exposures:
             if 'inside' in exposure:
-                hazard = hazards['heat inside']
+                hazard = hazards['inside']
             else:
-                hazard = hazards['heat outside']
+                hazard = hazards['outside']
             impact = Impact()
-            impact.calc(exposures[exposure], if_hw_set, hazard, save_mat=True)
-            imp_mat[exposure] = csr_matrix(impact.imp_mat)
-
+            impact.calc(exposures[exposure], if_hw_set, hazard, save_mat=False)
+            imp_mat[exposure] = impact.eai_exp
         return imp_mat
 
     def costs_in_millions(self):
@@ -215,7 +214,7 @@ class ImpactsHeatMortality(ImpactsHeat):
         for exposure in exposures:
             impact = ImpactHeatMortality()
             impact.calc(exposures[exposure], if_hw_set, hazard, save_mat=True)
-            imp_mat[exposure] = csr_matrix(impact.imp_mat.sum(axis=0))
+            imp_mat[exposure] = impact.imp_mat.sum(axis=0)
         return imp_mat
 
 
@@ -265,7 +264,7 @@ class ImpactHeatMortality(Impact):
 
     @staticmethod
     def _impact_mortality(temperature_matrix, exposure_values, daily_deaths_corrected, imp_fun):
-        temperature_array = temperature_matrix.toarray().astype(int)
+        temperature_array = np.round(temperature_matrix.toarray()).astype(int)
         temperatures = np.unique(temperature_array)
         temperatures = temperatures[temperatures > 21]
         occurence = np.apply_along_axis(np.bincount, axis=0, arr=temperature_array,
